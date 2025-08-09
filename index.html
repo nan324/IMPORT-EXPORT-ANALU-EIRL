@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analu Digital – Catálogo</title>
+  <meta name="description" content="Catálogo de productos de Analu Digital sincronizado con Google Sheets.">
+  <style>
+    * { box-sizing: border-box; }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:#f6f7fb; color:#222;}
+    header{background:#0f172a; color:white; padding:24px 16px; text-align:center; box-shadow: 0 2px 12px rgba(0,0,0,.15);}
+    header h1{margin:0; font-size: clamp(22px, 4vw, 34px); letter-spacing:.5px;}
+    header p{margin:6px 0 0; opacity:.85}
+    .container{max-width:1200px; margin:24px auto; padding:0 16px;}
+    .controls{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+    input, select{padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; outline:none; min-width:200px; background:white;}
+    .grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:16px;}
+    .card{background:white; border-radius:16px; box-shadow:0 10px 24px rgba(2,6,23,.08); overflow:hidden; display:flex; flex-direction:column; transition: transform .15s ease, box-shadow .2s ease;}
+    .card:hover{ transform: translateY(-2px); box-shadow:0 14px 28px rgba(2,6,23,.12);}
+    .thumb{width:100%; aspect-ratio:1/1; object-fit:contain; background:#f9fafb;}
+    .card-body{padding:12px 14px; display:flex; flex-direction:column; gap:6px;}
+    .name{font-weight:600; line-height:1.25; font-size:15px;}
+    .meta{font-size:13px; color:#6b7280;}
+    .price{font-weight:800; margin-top:4px;}
+    .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:12px;}
+    footer{padding:28px 16px; text-align:center; color:#6b7280; font-size:13px;}
+    .hidden{display:none !important;}
+    .debug{font-size:12px; color:#6b7280; margin-top:16px;}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Analu Digital</h1>
+    <p>Catálogo actualizado en tiempo real desde Google Sheets</p>
+  </header>
+
+  <div class="container">
+    <div class="controls">
+      <input id="q" type="search" placeholder="Buscar por nombre...">
+      <select id="cat">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="sort">
+        <option value="name-asc">Ordenar: Nombre (A-Z)</option>
+        <option value="name-desc">Ordenar: Nombre (Z-A)</option>
+        <option value="price-asc">Ordenar: Precio (menor a mayor)</option>
+        <option value="price-desc">Ordenar: Precio (mayor a menor)</option>
+      </select>
+    </div>
+
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="hidden">No se encontraron productos con esos filtros.</div>
+    <div id="debug" class="debug"></div>
+  </div>
+
+  <footer>© <span id="year"></span> Analu Digital</footer>
+
+<script>
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ2_DMe6rrJgjo3M4YKVk98oJWRHedfPF2uFbt1x-EATj9AQRpR_UwK9tvFHs9JSA/pub?output=csv";
+  const DRIVE_BASE = "https://drive.google.com/uc?export=view&id=";
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  const q = document.getElementById('q');
+  const cat = document.getElementById('cat');
+  const sortSel = document.getElementById('sort');
+  const dbg = document.getElementById('debug');
+  const state = { rows: [], filtered: [] };
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  function normalize(str){ return (str || "").toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/^\ufeff/, ''); }
+
+  function keyMatch(map, wanted){
+    wanted = normalize(wanted);
+    for (const k of Object.keys(map)){
+      const nk = normalize(k);
+      if (nk === wanted) return k;
+    }
+    for (const k of Object.keys(map)){
+      const nk = normalize(k);
+      if (nk.includes(wanted)) return k;
+    }
+    return null;
+  }
+
+  function remapRow(row){
+    const nameK = keyMatch(row, 'nombre del producto');
+    const priceK = keyMatch(row, 'precio');
+    const catK   = keyMatch(row, 'categoria');
+    const stockK = keyMatch(row, 'stock');
+    const idK    = keyMatch(row, 'id de imagen (google drive)') || keyMatch(row, 'id de imagen') || keyMatch(row, 'imagen id');
+    return { name: nameK ? row[nameK] : '', price: priceK ? row[priceK] : '', cat: catK ? row[catK] : '', stock: stockK ? row[stockK] : '', imgId: idK ? row[idK] : '' };
+  }
+
+  function renderCategories(rows){
+    const cats = Array.from(new Set(rows.map(r => (r.cat||'').toString().trim()).filter(Boolean))).sort();
+    cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; cat.appendChild(opt); });
+  }
+
+  function applyFilters(){
+    const term = normalize(q.value);
+    const c = cat.value;
+    let arr = [...state.rows];
+
+    if (term) arr = arr.filter(r => normalize(r.name).includes(term));
+    if (c) arr = arr.filter(r => (r.cat||'').toString().trim() === c);
+
+    const s = sortSel.value;
+    arr.sort((a,b)=>{ if (s === 'name-asc') return (a.name||'').localeCompare(b.name||''); if (s === 'name-desc') return (b.name||'').localeCompare(a.name||''); if (s === 'price-asc') return (+a.price||0) - (+b.price||0); if (s === 'price-desc') return (+b.price||0) - (+a.price||0); return 0; });
+
+    state.filtered = arr;
+    renderGrid();
+  }
+
+  function renderGrid(){
+    grid.innerHTML = "";
+    if (!state.filtered.length){ empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+
+    state.filtered.forEach(r => {
+      const url = r.imgId ? (DRIVE_BASE + r.imgId) : '';
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <img class="thumb" alt="foto" src="${url}"/>
+        <div class="card-body">
+          <div class="name">${r.name||''}</div>
+          <div class="price">S/ ${Number(r.price||0).toFixed(2)}</div>
+          <div class="meta"><span class="badge">${r.cat||''}</span> &nbsp; • Stock: ${r.stock||0}</div>
+        </div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  function start(){
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results){
+        const hdrs = results.meta.fields || [];
+        dbg.textContent = "Cabeceras detectadas: " + hdrs.join(" | ");
+        const mapped = results.data.map(remapRow).filter(r => r.name);
+        state.rows = mapped;
+        renderCategories(state.rows);
+        applyFilters();
+      },
+      error: function(err){ grid.innerHTML = "<p>Error al cargar datos: "+err.message+"</p>"; }
+    });
+  }
+
+  q.addEventListener('input', applyFilters);
+  cat.addEventListener('change', applyFilters);
+  sortSel.addEventListener('change', applyFilters);
+
+  start();
+</script>
+</body>
+</html>
