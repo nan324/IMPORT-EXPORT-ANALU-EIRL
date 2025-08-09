@@ -102,13 +102,20 @@ function imgURL(val){
   }
 
   function remapRow(row){
-    const nameK = keyMatch(row, 'nombre del producto');
-    const priceK = keyMatch(row, 'precio');
-    const catK   = keyMatch(row, 'categoria');
-    const stockK = keyMatch(row, 'stock');
-    const idK    = keyMatch(row, 'id de imagen (google drive)') || keyMatch(row, 'id de imagen') || keyMatch(row, 'imagen id');
-    return { name: nameK ? row[nameK] : '', price: priceK ? row[priceK] : '', cat: catK ? row[catK] : '', stock: stockK ? row[stockK] : '', imgId: idK ? row[idK] : '' };
-  }
+  const nameK = keyMatch(row, 'nombre del producto');
+  const codeK = keyMatch(row, 'codigo') || keyMatch(row, 'código');
+  const catK   = keyMatch(row, 'categoria');
+  const stockK = keyMatch(row, 'stock');
+  const idK    = keyMatch(row, 'id de imagen (google drive)') || keyMatch(row, 'id de imagen') || keyMatch(row, 'imagen id');
+  return { 
+    name: nameK ? row[nameK] : '', 
+    code: codeK ? row[codeK] : '', 
+    cat: catK ? row[catK] : '', 
+    stock: stockK ? row[stockK] : '', 
+    imgId: idK ? row[idK] : '' 
+  };
+}
+
 
   function renderCategories(rows){
     const cats = Array.from(new Set(rows.map(r => (r.cat||'').toString().trim()).filter(Boolean))).sort();
@@ -165,7 +172,7 @@ function renderGrid(){
     body.className = 'card-body';
     body.innerHTML = `
       <div class="name">${r.name || ''}</div>
-      
+      <div class="meta">Código: ${r.code || 'N/A'}</div>
     `;
 
     card.appendChild(img);
