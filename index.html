@@ -130,12 +130,17 @@ function imgURL(val){
     renderGrid();
   }
 
-  function renderGrid(){
+
+function renderGrid(){
     grid.innerHTML = "";
     if (!state.filtered.length){ empty.classList.remove('hidden'); return; }
     empty.classList.add('hidden');
 
     state.filtered.forEach(r => {
+      const url = r.imgId ? (DRIVE_BASE + r.imgId) : '';
+      const card = document.createElement('div');
+      card.className = 'card';
+      state.filtered.forEach(r => {
   const url = imgURL(r.imgId);
 
   const card = document.createElement('div');
@@ -170,12 +175,15 @@ function imgURL(val){
   grid.appendChild(card);
 });
 
-
-
       grid.appendChild(card);
     });
   }
 
+
+
+
+
+  
   function start(){
     Papa.parse(CSV_URL, {
       download: true,
