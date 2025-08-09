@@ -62,27 +62,17 @@
   // Acepta ID o URL completas de Drive y devuelve una URL válida para <img>
 function imgURL(val){
   if(!val) return "";
-  val = String(val).trim();
-
-  // ¿Vino como URL completa?
+  val = String(val).trim().replace(/^["']|["']$/g,"").replace(/^\ufeff/, "");
   if (/^https?:\/\//.test(val)) {
-    // Extrae ID desde .../d/ID/... o ?id=ID
     const m1 = val.match(/\/d\/([A-Za-z0-9_-]{10,})/);
     const m2 = val.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
-    const realID = (m1 && m1[1]) || (m2 && m2[1]);
-    if (realID) return `https://drive.usercontent.google.com/download?id=${realID}&export=view`;
-    // Si no se pudo extraer, devuelve tal cual (por si ya es un link directo válido)
-    return val;
+    val = (m1 && m1[1]) || (m2 && m2[1]) || val;
   }
-
-  // ¿Vino como ID puro?
-  if (/^[A-Za-z0-9_-]{10,}$/.test(val)) {
-    return `https://drive.usercontent.google.com/download?id=${val}&export=view`;
-  }
-
-  // Fallback: deja el valor tal cual
-  return val;
+  const m = String(val).match(/[A-Za-z0-9_-]{10,}/);
+  const id = m ? m[0] : "";
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : "";
 }
+
 
   const grid = document.getElementById('grid');
   const empty = document.getElementById('empty');
