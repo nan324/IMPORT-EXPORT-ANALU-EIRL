@@ -189,8 +189,23 @@ function renderGrid(){
       complete: function(results){
         const hdrs = results.meta.fields || [];
         dbg.textContent = "Cabeceras detectadas: " + hdrs.join(" | ");
-        const mapped = results.data.map(remapRow).filter(r => r.name);
-        state.rows = mapped;
+        const mapped = results.data
+  .map(remapRow)
+  .filter(r => r.name);
+
+// Quitar duplicados por nombre (puedes cambiar a código si tienes una columna "Código")
+const unique = [];
+const seen = new Set();
+for (const r of mapped) {
+  const key = (r.name || '').trim().toLowerCase();
+  if (!seen.has(key)) {
+    seen.add(key);
+    unique.push(r);
+  }
+}
+
+state.rows = unique;
+
         renderCategories(state.rows);
         applyFilters();
       },
