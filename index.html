@@ -59,6 +59,31 @@
 <script>
   const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ2_DMe6rrJgjo3M4YKVk98oJWRHedfPF2uFbt1x-EATj9AQRpR_UwK9tvFHs9JSA/pub?output=csv";
   const DRIVE_BASE = "https://drive.usercontent.google.com/download?id=";
+  // Acepta ID o URL completas de Drive y devuelve una URL válida para <img>
+function imgURL(val){
+  if(!val) return "";
+  val = String(val).trim();
+
+  // ¿Vino como URL completa?
+  if (/^https?:\/\//.test(val)) {
+    // Extrae ID desde .../d/ID/... o ?id=ID
+    const m1 = val.match(/\/d\/([A-Za-z0-9_-]{10,})/);
+    const m2 = val.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+    const realID = (m1 && m1[1]) || (m2 && m2[1]);
+    if (realID) return `https://drive.usercontent.google.com/download?id=${realID}&export=view`;
+    // Si no se pudo extraer, devuelve tal cual (por si ya es un link directo válido)
+    return val;
+  }
+
+  // ¿Vino como ID puro?
+  if (/^[A-Za-z0-9_-]{10,}$/.test(val)) {
+    return `https://drive.usercontent.google.com/download?id=${val}&export=view`;
+  }
+
+  // Fallback: deja el valor tal cual
+  return val;
+}
+
   const grid = document.getElementById('grid');
   const empty = document.getElementById('empty');
   const q = document.getElementById('q');
@@ -121,11 +146,15 @@
     empty.classList.add('hidden');
 
     state.filtered.forEach(r => {
-      const url = r.imgId ? (DRIVE_BASE + r.imgId) : '';
+      const url = imgURL(r.imgId);
+
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
-        <img class="thumb" alt="foto" src="${url}"/>
+       <img class="thumb" alt="foto" src="${url}"
+     onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,'+
+     encodeURIComponent('<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'600\' height=\'600\'><rect width=\'100%\' height=\'100%\' fill=\'#f3f4f6\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'#9ca3af\' font-family=\'Arial\' font-size=\'22\'>Sin imagen</text></svg>');"/>
+
         <div class="card-body">
           <div class="name">${r.name||''}</div>
           <div class="price">S/ ${Number(r.price||0).toFixed(2)}</div>
