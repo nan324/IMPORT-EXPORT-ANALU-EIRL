@@ -147,6 +147,7 @@ function imgURL(val){
 
     state.filtered.forEach(r => {
       const url = imgURL(r.imgId);
+      console.log('IMG:', r.imgId, '->', url);
 
       const card = document.createElement('div');
       card.className = 'card';
