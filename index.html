@@ -26,6 +26,12 @@
     footer{padding:28px 16px; text-align:center; color:#6b7280; font-size:13px;}
     .hidden{display:none !important;}
     .debug{font-size:12px; color:#6b7280; margin-top:16px;}
+
+
+    .avail{font-weight:600;font-size:12px;padding:2px 8px;border-radius:9999px}
+    .avail.ok{background:#ecfdf5;color:#065f46}        /* verde */
+    .avail.no{background:#fee2e2;color:#991b1b}        /* rojo  */
+
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -137,6 +143,19 @@ function imgURL(val){
     renderGrid();
   }
 
+
+  
+function availability(s){
+  const v = String(s ?? '').trim().toLowerCase();
+  const num = parseFloat(v.replace(',', '.'));
+  let ok = false;
+  if (!isNaN(num)) { ok = num > 0; }
+  else { ok = ['si','sí','disponible','available','true','ok'].includes(v); }
+  return { text: ok ? 'Disponible' : 'No disponible', cls: ok ? 'ok' : 'no' };
+}
+
+
+  
 function renderGrid(){
   grid.innerHTML = "";
   if (!state.filtered.length){
@@ -173,6 +192,25 @@ function renderGrid(){
     body.innerHTML = `
       <div class="name">${r.name || ''}</div>
       <div class="meta">Código: ${r.code || 'N/A'}</div>
+
+
+
+
+
+      const a = availability(r.stock);
+body.innerHTML = `
+  <div class="name">${r.name || ''}</div>
+  <div class="meta"><span class="badge">${r.cat || ''}</span> &nbsp; • 
+    <span class="avail ${a.cls}">${a.text}</span>
+  </div>
+`;
+
+
+
+
+
+
+      
     `;
 
     card.appendChild(img);
