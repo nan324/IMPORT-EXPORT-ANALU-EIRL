@@ -194,7 +194,13 @@
   // === 2) NUEVO: leer desde tu API en lugar del CSV
   async function fetchFromAPI({ q="", cat="all", sort="name-asc", page=0, pageSize=1000, inStock=0 } = {}) {
     const params = new URLSearchParams({ q, cat, sort, page, pageSize, inStock, key: API_KEY });
-    const res = await fetch(`${API_URL}?${params.toString()}`);
+    
+
+
+await fetch(`${API_URL}?${params.toString()}`);
+
+
+    
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "Error API");
     return data.items; // arreglo de productos
