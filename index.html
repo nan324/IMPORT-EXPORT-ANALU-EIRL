@@ -186,21 +186,21 @@ function renderGrid(){
       this.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
     };
 
-    // Cuerpo de la tarjeta
-    const body = document.createElement('div');
-    body.className = 'card-body';
-    body.innerHTML = `
-      <div class="name">${r.name || ''}</div>
-      <div class="meta">Código: ${r.code || 'N/A'}</div>
+   
 
 
+// Cuerpo de la tarjeta
+const body = document.createElement('div');
+body.className = 'card-body';
 
+// calcula disponibilidad fuera del template
+const a = availability(r.stock);
 
-
-      const a = availability(r.stock);
 body.innerHTML = `
   <div class="name">${r.name || ''}</div>
-  <div class="meta"><span class="badge">${r.cat || ''}</span> &nbsp; • 
+  <div class="meta">Código: ${r.code || 'N/A'}</div>
+  <div class="meta">
+    <span class="badge">${r.cat || ''}</span> &nbsp; •
     <span class="avail ${a.cls}">${a.text}</span>
   </div>
 `;
@@ -208,10 +208,7 @@ body.innerHTML = `
 
 
 
-
-
-      
-    `;
+    
 
     card.appendChild(img);
     card.appendChild(body);
