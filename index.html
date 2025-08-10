@@ -199,10 +199,8 @@ const a = availability(r.stock);
 body.innerHTML = `
   <div class="name">${r.name || ''}</div>
   <div class="meta">Código: ${r.code || 'N/A'}</div>
-  <div class="meta">
-    <span class="badge">${r.cat || ''}</span> &nbsp; •
-    <span class="avail ${a.cls}">${a.text}</span>
-  </div>
+  <div class="meta"><span class="badge">${r.cat || ''}</span></div>
+  <div span class="avail ${a.cls}">${a.text}</span></div>
 `;
 
 
