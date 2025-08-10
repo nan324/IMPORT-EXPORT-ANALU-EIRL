@@ -63,22 +63,23 @@
   <footer>© <span id="year"></span> Analu Digital</footer>
 
 <script>
-  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ2_DMe6rrJgjo3M4YKVk98oJWRHedfPF2uFbt1x-EATj9AQRpR_UwK9tvFHs9JSA/pub?output=csv";
-  const DRIVE_BASE = "https://drive.usercontent.google.com/download?id=";
-  // Acepta ID o URL completas de Drive y devuelve una URL válida para <img>
-function imgURL(val){
-  if(!val) return "";
-  val = String(val).trim().replace(/^["']|["']$/g,"").replace(/^\ufeff/, "");
-  if (/^https?:\/\//.test(val)) {
-    const m1 = val.match(/\/d\/([A-Za-z0-9_-]{10,})/);
-    const m2 = val.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
-    val = (m1 && m1[1]) || (m2 && m2[1]) || val;
-  }
-  const m = String(val).match(/[A-Za-z0-9_-]{10,}/);
-  const id = m ? m[0] : "";
-  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : "";
-}
+  // === 1) NUEVO: tu API segura ===
+  const API_URL = "https://script.google.com/macros/s/AKfycbz4XepwFIIbROl9to4TDN7ibh9euN-6kjzV04JOcmHYI16iRuUzGep1qYKnsYwwQnBn/exec";
+  const API_KEY = "MiClaveCatalogo2025_1972"; // <-- tu clave
 
+  // Si en la hoja guardas ID o URL de Drive, esta función genera una URL válida para <img>
+  function imgURL(val){
+    if(!val) return "";
+    val = String(val).trim().replace(/^["']|["']$/g,"").replace(/^\ufeff/, "");
+    if (/^https?:\/\//.test(val)) {
+      const m1 = val.match(/\/d\/([A-Za-z0-9_-]{10,})/);
+      const m2 = val.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+      val = (m1 && m1[1]) || (m2 && m2[1]) || val;
+    }
+    const m = String(val).match(/[A-Za-z0-9_-]{10,}/);
+    const id = m ? m[0] : "";
+    return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : "";
+  }
 
   const grid = document.getElementById('grid');
   const empty = document.getElementById('empty');
@@ -107,25 +108,66 @@ function imgURL(val){
     return null;
   }
 
-  function remapRow(row){
-  const nameK = keyMatch(row, 'nombre del producto');
-  const codeK = keyMatch(row, 'codigo') || keyMatch(row, 'código');
-  const catK   = keyMatch(row, 'categoria');
-  const stockK = keyMatch(row, 'stock');
-  const idK    = keyMatch(row, 'id de imagen (google drive)') || keyMatch(row, 'id de imagen') || keyMatch(row, 'imagen id');
-  return { 
-    name: nameK ? row[nameK] : '', 
-    code: codeK ? row[codeK] : '', 
-    cat: catK ? row[catK] : '', 
-    stock: stockK ? row[stockK] : '', 
-    imgId: idK ? row[idK] : '' 
-  };
-}
-
+  // Disponibilidad por stock
+  function availability(s){
+    const v = String(s ?? '').trim().toLowerCase();
+    const num = parseFloat(v.replace(',', '.'));
+    let ok = false;
+    if (!isNaN(num)) { ok = num > 0; }
+    else { ok = ['si','sí','disponible','available','true','ok'].includes(v); }
+    return { text: ok ? 'Disponible' : 'No disponible', cls: ok ? 'ok' : 'no' };
+  }
 
   function renderCategories(rows){
     const cats = Array.from(new Set(rows.map(r => (r.cat||'').toString().trim()).filter(Boolean))).sort();
     cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; cat.appendChild(opt); });
+  }
+
+  function renderGrid(){
+    grid.innerHTML = "";
+    if (!state.filtered.length){
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    for (const r of state.filtered) {
+      const url = imgURL(r.imgId);
+
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.alt = 'foto';
+      img.src = url;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.onerror = function () {
+        this.onerror = null;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
+          <rect width="100%" height="100%" fill="#f3f4f6"/>
+          <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+                fill="#9ca3af" font-family="Arial" font-size="22">Sin imagen</text>
+        </svg>`;
+        this.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+      };
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+      const a = availability(r.stock);
+
+      body.innerHTML = `
+        <div class="name">${r.name || ''}</div>
+        <div class="meta">Código: ${r.code || 'N/A'}</div>
+        <div class="meta"><span class="badge">${r.cat || ''}</span></div>
+        <div class="avail ${a.cls}">${a.text}</div>
+      `;
+
+      card.appendChild(img);
+      card.appendChild(body);
+      grid.appendChild(card);
+    }
   }
 
   function applyFilters(){
@@ -137,119 +179,59 @@ function imgURL(val){
     if (c) arr = arr.filter(r => (r.cat||'').toString().trim() === c);
 
     const s = sortSel.value;
-    arr.sort((a,b)=>{ if (s === 'name-asc') return (a.name||'').localeCompare(b.name||''); if (s === 'name-desc') return (b.name||'').localeCompare(a.name||''); if (s === 'price-asc') return (+a.price||0) - (+b.price||0); if (s === 'price-desc') return (+b.price||0) - (+a.price||0); return 0; });
+    arr.sort((a,b)=>{
+      if (s === 'name-asc')  return (a.name||'').localeCompare(b.name||'');
+      if (s === 'name-desc') return (b.name||'').localeCompare(a.name||'');
+      if (s === 'price-asc') return (+a.price||0) - (+b.price||0);
+      if (s === 'price-desc')return (+b.price||0) - (+a.price||0);
+      return 0;
+    });
 
     state.filtered = arr;
     renderGrid();
   }
 
-
-  
-function availability(s){
-  const v = String(s ?? '').trim().toLowerCase();
-  const num = parseFloat(v.replace(',', '.'));
-  let ok = false;
-  if (!isNaN(num)) { ok = num > 0; }
-  else { ok = ['si','sí','disponible','available','true','ok'].includes(v); }
-  return { text: ok ? 'Disponible' : 'No disponible', cls: ok ? 'ok' : 'no' };
-}
-
-
-  
-function renderGrid(){
-  grid.innerHTML = "";
-  if (!state.filtered.length){
-    empty.classList.remove('hidden');
-    return;
+  // === 2) NUEVO: leer desde tu API en lugar del CSV
+  async function fetchFromAPI({ q="", cat="all", sort="name-asc", page=0, pageSize=1000, inStock=0 } = {}) {
+    const params = new URLSearchParams({ q, cat, sort, page, pageSize, inStock, key: API_KEY });
+    const res = await fetch(`${API_URL}?${params.toString()}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "Error API");
+    return data.items; // arreglo de productos
   }
-  empty.classList.add('hidden');
 
-  // Un solo recorrido
-  for (const r of state.filtered) {
-    const url = imgURL(r.imgId); // usa la función robusta para Drive
-
-    const card = document.createElement('div');
-    card.className = 'card';
-
-    // IMG sin inline onerror
-    const img = document.createElement('img');
-    img.className = 'thumb';
-    img.alt = 'foto';
-    img.src = url;
-    img.onerror = function () {
-      this.onerror = null;
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
-        <rect width="100%" height="100%" fill="#f3f4f6"/>
-        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-              fill="#9ca3af" font-family="Arial" font-size="22">Sin imagen</text>
-      </svg>`;
-      this.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  // Mapeo del JSON de la API -> estructura usada en la UI
+  function mapItem(x){
+    return {
+      name:  x.nombre || '',
+      code:  x.codigo || '',
+      cat:   x.categoria || '',
+      price: x.precio ?? '',
+      stock: x.stock ?? '',
+      imgId: x.imagen || ''   // puede ser ID o URL; imgURL() se encarga
     };
-
-   
-
-
-// Cuerpo de la tarjeta
-const body = document.createElement('div');
-body.className = 'card-body';
-
-// calcula disponibilidad fuera del template
-const a = availability(r.stock);
-
-body.innerHTML = `
-  <div class="name">${r.name || ''}</div>
-  <div class="meta">Código: ${r.code || 'N/A'}</div>
-  <div class="meta"><span class="badge">${r.cat || ''}</span></div>
-  <div span class="avail ${a.cls}">${a.text}</span></div>
-`;
-
-
-
-
-    
-
-    card.appendChild(img);
-    card.appendChild(body);
-    grid.appendChild(card);
   }
-}
 
+  async function start(){
+    try{
+      const items = await fetchFromAPI({ pageSize: 1000 }); // trae todos (ajusta si tienes más)
+      const mapped = items.map(mapItem).filter(r => r.name);
 
+      // Quitar duplicados por nombre
+      const unique = [];
+      const seen = new Set();
+      for (const r of mapped) {
+        const key = (r.name || '').trim().toLowerCase();
+        if (!seen.has(key)) { seen.add(key); unique.push(r); }
+      }
 
-
-
-
-  
-  function start(){
-    Papa.parse(CSV_URL, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: function(results){
-        const hdrs = results.meta.fields || [];
-        dbg.textContent = "Cabeceras detectadas: " + hdrs.join(" | ");
-        const mapped = results.data
-  .map(remapRow)
-  .filter(r => r.name);
-
-// Quitar duplicados por nombre (puedes cambiar a código si tienes una columna "Código")
-const unique = [];
-const seen = new Set();
-for (const r of mapped) {
-  const key = (r.name || '').trim().toLowerCase();
-  if (!seen.has(key)) {
-    seen.add(key);
-    unique.push(r);
-  }
-}
-
-state.rows = unique;
-
-        renderCategories(state.rows);
-        applyFilters();
-      },
-      error: function(err){ grid.innerHTML = "<p>Error al cargar datos: "+err.message+"</p>"; }
-    });
+      state.rows = unique;
+      dbg.textContent = "Productos cargados: " + state.rows.length;
+      renderCategories(state.rows);
+      applyFilters();
+    } catch(err){
+      grid.innerHTML = `<p>Error al cargar datos: ${err.message}</p>`;
+    }
   }
 
   q.addEventListener('input', applyFilters);
@@ -258,6 +240,7 @@ state.rows = unique;
 
   start();
 </script>
+
 </body>
 </html>
 
