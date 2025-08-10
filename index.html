@@ -67,6 +67,20 @@
   const API_URL = "https://script.google.com/macros/s/AKfycbz4XepwFIIbROl9to4TDN7ibh9euN-6kjzV04JOcmHYI16iRuUzGep1qYKnsYwwQnBn/exec";
   const API_KEY = "MiClaveCatalogo2025_1972"; // <-- tu clave
 
+
+
+  // --- NUEVO: función para cargar con JSONP (evita CORS)
+function fetchJSONP(url){
+  return new Promise((resolve, reject) => {
+    const cb = 'cb_' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const sep = url.includes('?') ? '&' : '?';
+    s.src = `${url}${sep}callback=${cb}`;
+    s.onerror = () => { delete window[cb]; s.remove(); reject(new Error('JSONP error')); };
+    window[cb] = (data) => { resolve(data); delete window[cb]; s.remove(); };
+    document.head.appendChild(s);
+  });
+}
   // Si en la hoja guardas ID o URL de Drive, esta función genera una URL válida para <img>
   function imgURL(val){
     if(!val) return "";
@@ -194,11 +208,9 @@
   // === 2) NUEVO: leer desde tu API en lugar del CSV
   async function fetchFromAPI({ q="", cat="all", sort="name-asc", page=0, pageSize=1000, inStock=0 } = {}) {
   const params = new URLSearchParams({ q, cat, sort, page, pageSize, inStock, key: API_KEY });
-  const res = await fetch(`${API_URL}?${params.toString()}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
+  const data = await fetchJSONP(`${API_URL}?${params.toString()}`);
   if (!data.ok) throw new Error(data.error || "Error API");
-  return data.items; // arreglo de productos
+  return data.items;
 }
 
 
