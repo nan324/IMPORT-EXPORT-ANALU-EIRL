@@ -72,11 +72,20 @@
 
 // Prefijo de código  ->  Nombre visible para el cliente
 const CODE_LABELS = {
-  'HYS-SH': 'Head & Shoulders',
-  'SD-SH':  'Sedal',
-  // agrega los que necesites...
-  // 'PD-SH': 'Pantene', ...
+  "HYS-SH": "Head & Shoulders",
+  "HYS-AC": "Head & Shoulders",   // <- se junta con HYS-SH
+  "SD-SH":  "Sedal",
+  "SD-AC":  "Sedal"               // <- se junta con SD-SH
 };
+
+  // Normaliza claves (evita guiones/comillas raros) y obtiene el nombre de marca
+function codeKey(s){
+  return String(s).normalize('NFKC').replace(/[–—−]/g, '-').trim().toUpperCase();
+}
+function codeLabel(prefix){
+  return CODE_LABELS[codeKey(prefix)] || prefix;
+}
+
 
 
   // --- NUEVO: función para cargar con JSONP (evita CORS)
@@ -163,38 +172,36 @@ function renderCodePrefixesForCategory(categoryValue){
   const codeSel = document.getElementById('code');
   codeSel.innerHTML = '<option value="">Todos los códigos</option>';
 
-  // Si no hay categoría, deshabilita
   if (!categoryValue){
     codeSel.disabled = true;
     return;
   }
 
-  // Prefijos únicos dentro de la categoría seleccionada
-  const prefixes = Array.from(
-    new Set(
-      state.rows
-        .filter(r => (r.cat || '').toString().trim() === categoryValue)
-        .map(codePrefixOf)
-        .filter(Boolean)
-    )
-  ).sort();
+  // Agrupar por marca (label) todos los prefijos presentes en la categoría
+  const groups = new Map(); // labelMarca -> Set<prefixes>
+  for (const r of state.rows){
+    if ((r.cat || '').toString().trim() !== categoryValue) continue;
+    const pref = codePrefixOf(r);
+    if (!pref) continue;
+    const label = codeLabel(pref);   // ← juntamos por NOMBRE DE MARCA
+    if (!groups.has(label)) groups.set(label, new Set());
+    groups.get(label).add(pref);
+  }
 
-  // Si hay prefijos, habilita y llena
-  // ...
-if (prefixes.length){
-  for (const p of prefixes){
+  // Llenar el select con UNA opción por marca
+  const labels = Array.from(groups.keys())
+    .sort((a,b) => a.localeCompare(b, 'es', {sensitivity:'base'}));
+
+  for (const label of labels){
     const opt = document.createElement('option');
-    opt.value = p;                              // seguimos filtrando por el prefijo real
-    opt.textContent = CODE_LABELS[p] || p;      // mostramos nombre amigable
-    opt.title = p;                               // tooltip con el prefijo real (opcional)
+    opt.value = 'label:' + label;   // valor indica selección por marca
+    opt.textContent = label;        // lo que ve el cliente
     codeSel.appendChild(opt);
   }
-  codeSel.disabled = false;
-} else {
-  codeSel.disabled = true;
+
+  codeSel.disabled = labels.length === 0;
 }
 
-}
 
 
   
@@ -300,13 +307,19 @@ function sortByCodePrefixThenNumber(arr) {
   const term = normalize(q.value);
   const c = cat.value;
   const codeSel = document.getElementById('code');
-  const codePrefix = codeSel ? codeSel.value : '';
+const selection = codeSel ? codeSel.value : '';
 
-  let arr = [...state.rows];
+if (selection) {
+  if (selection.startsWith('label:')) {
+    const label = selection.slice(6); // nombre de marca
+    // Mostrar TODOS los productos cuyos prefijos mapeen a esa marca
+    arr = arr.filter(r => codeLabel(codePrefixOf(r)) === label);
+  } else {
+    // Compatibilidad si alguna opción fuese un prefijo directo
+    arr = arr.filter(r => codePrefixOf(r) === selection);
+  }
+}
 
-  if (term) arr = arr.filter(r => normalize(r.name).includes(term));
-  if (c)    arr = arr.filter(r => (r.cat||'').toString().trim() === c);
-  if (codePrefix) arr = arr.filter(r => codePrefixOf(r) === codePrefix);
 
   const s = (sortSel && sortSel.value) ? sortSel.value : 'code-asc';
 
