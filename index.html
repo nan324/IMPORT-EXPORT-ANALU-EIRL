@@ -79,6 +79,13 @@
   const API_URL = "https://script.google.com/macros/s/AKfycbwSFDcFdTET7ViMJdFMX_EmgBwICuCyouVHP07aOCEjjy_qT62JmRfHRfJKhS5dCgc/exec";
   const API_KEY = "MiClaveCatalogo2025_1972"; // <-- tu clave
 
+// Prefijo de código  ->  Nombre visible para el cliente
+const CODE_LABELS = {
+  'HYS-SH': 'Head & Shoulders',
+  'SD-SH':  'Sedal',
+  // agrega los que necesites...
+  // 'PD-SH': 'Pantene', ...
+};
 
 
   // --- NUEVO: función para cargar con JSONP (evita CORS)
@@ -182,17 +189,20 @@ function renderCodePrefixesForCategory(categoryValue){
   ).sort();
 
   // Si hay prefijos, habilita y llena
-  if (prefixes.length){
-    for (const p of prefixes){
-      const opt = document.createElement('option');
-      opt.value = p;
-      opt.textContent = p;
-      codeSel.appendChild(opt);
-    }
-    codeSel.disabled = false;
-  } else {
-    codeSel.disabled = true;
+  // ...
+if (prefixes.length){
+  for (const p of prefixes){
+    const opt = document.createElement('option');
+    opt.value = p;                              // seguimos filtrando por el prefijo real
+    opt.textContent = CODE_LABELS[p] || p;      // mostramos nombre amigable
+    opt.title = p;                               // tooltip con el prefijo real (opcional)
+    codeSel.appendChild(opt);
   }
+  codeSel.disabled = false;
+} else {
+  codeSel.disabled = true;
+}
+
 }
 
 
