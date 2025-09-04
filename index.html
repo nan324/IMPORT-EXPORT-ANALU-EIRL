@@ -222,9 +222,31 @@ function sortByCodePrefixThenNumber(arr) {
 
   
   function renderCategories(rows){
-    const cats = Array.from(new Set(rows.map(r => (r.cat||'').toString().trim()).filter(Boolean))).sort();
-    cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; cat.appendChild(opt); });
+  // 1) limpiar opciones previas (deja solo "Todas las categorías")
+  while (cat.options.length > 1) cat.remove(1);
+
+  // 2) deduplicar con normalize() para evitar "Aseo" vs "aseo"
+  const map = new Map();
+  for (const r of rows){
+    const raw = (r.cat || '').toString().trim();
+    if (!raw) continue;
+    const key = normalize(raw);
+    if (!map.has(key)) map.set(key, raw); // guarda la primera versión vista
   }
+
+  // 3) ordenar alfabéticamente
+  const cats = Array.from(map.values())
+    .sort((a,b) => a.localeCompare(b, 'es', {sensitivity: 'base'}));
+
+  // 4) agregar opciones únicas
+  for (const c of cats){
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    cat.appendChild(opt);
+  }
+}
+
 
   function renderGrid(){
     grid.innerHTML = "";
@@ -340,14 +362,20 @@ function sortByCodePrefixThenNumber(arr) {
       }
 
       state.rows = unique;
-      dbg.textContent = "Productos cargados: " + state.rows.length;
-      renderCategories(state.rows);
+dbg.textContent = "Productos cargados: " + state.rows.length;
 
+// Render categorías (sin duplicados)
+renderCategories(state.rows);
 
-      renderCategories(state.rows);
-renderCodePrefixesForCategory(cat.value); // inicializa #code (queda deshabilitado si no hay categoría)
+// Inicializar segundo select (códigos)
+renderCodePrefixesForCategory(cat.value);
+
+// Orden inicial
 sortSel.value = 'code-asc';
+
+// Pintar productos
 applyFilters();
+
 
       
       
