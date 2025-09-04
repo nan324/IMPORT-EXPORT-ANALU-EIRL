@@ -49,7 +49,8 @@
       </select>
       <select id="sort">
         
-        <option value="code-cat-asc">Ordenar: Código (1..n por categoría)</option>
+        <option value="code-asc">Ordenar: Código (prefijo y número)</option>
+
 
         <option value="name-asc">Ordenar: Nombre (A-Z)</option>
         <option value="name-desc">Ordenar: Nombre (Z-A)</option>
@@ -136,62 +137,35 @@ function fetchJSONP(url){
   }
 
 
-// === Helpers para código y orden ===
-function parseCode(code) {
-  const m = String(code || '').trim().match(/^(.+?)-(\d+)$/);
-  if (!m) return { prefix: String(code || '').trim(), num: Number.POSITIVE_INFINITY };
+// --- Orden por código con sufijo numérico ---
+// Acepta códigos con varios guiones, tomando el ÚLTIMO tramo como número.
+// Ej: "HYS-SH-12" -> prefix: "HYS-SH", num: 12
+function parseCodeLastNumber(code) {
+  const txt = String(code || '').trim();
+  const m = txt.match(/^(.+?)-(\d+)$/); // todo lo anterior al último guion es prefijo
+  if (!m) return { prefix: txt.toUpperCase(), num: Number.POSITIVE_INFINITY };
   return { prefix: m[1].toUpperCase(), num: parseInt(m[2], 10) };
 }
 
-// Ordena por: 1) categoría, 2) número al final del código (asc)
-function sortByCategoryThenNumericCode(arr) {
+// Ordena por: 1) prefijo (alfabético), 2) número final (asc)
+function sortByCodePrefixThenNumber(arr) {
   return [...arr].sort((a, b) => {
-    const aCat = (a.cat || '').toString().toUpperCase();
-    const bCat = (b.cat || '').toString().toUpperCase();
-    if (aCat < bCat) return -1;
-    if (aCat > bCat) return 1;
+    const A = parseCodeLastNumber(a.code);
+    const B = parseCodeLastNumber(b.code);
 
-    const pa = parseCode(a.code);
-    const pb = parseCode(b.code);
-    if (pa.num < pb.num) return -1;
-    if (pa.num > pb.num) return 1;
+    if (A.prefix < B.prefix) return -1;
+    if (A.prefix > B.prefix) return 1;
 
-    // desempate final por texto
-    const aCode = (a.code || '').toString().toUpperCase();
-    const bCode = (b.code || '').toString().toUpperCase();
-    return aCode < bCode ? -1 : aCode > bCode ? 1 : 0;
+    if (A.num < B.num) return -1;
+    if (A.num > B.num) return 1;
+
+    // desempate estable por texto completo del código
+    const ac = String(a.code || '').toUpperCase();
+    const bc = String(b.code || '').toUpperCase();
+    return ac < bc ? -1 : ac > bc ? 1 : 0;
   });
 }
 
-// (OPCIONAL) Renumera dentro de cada categoría como 1,2,3,4...
-// Úsalo si quieres forzar que cada categoría tenga códigos consecutivos.
-function renumberSequentialPerCategory(arr) {
-  // agrupar por categoría
-  const groups = new Map();
-  for (const p of arr) {
-    const k = (p.cat || '').toString().trim().toUpperCase();
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(p);
-  }
-  // renumerar cada grupo manteniendo el prefijo del código
-  for (const [, list] of groups.entries()) {
-    // ordenar por número actual para que sea estable
-    list.sort((a, b) => parseCode(a.code).num - parseCode(b.code).num);
-    // tomar el prefijo más común en el grupo; si no hay, usar el prefijo del primero
-    const count = new Map();
-    for (const item of list) {
-      const { prefix } = parseCode(item.code);
-      if (prefix) count.set(prefix, (count.get(prefix) || 0) + 1);
-    }
-    let chosen = list.length ? parseCode(list[0].code).prefix : 'CAT';
-    if (count.size) chosen = [...count.entries()].sort((a,b)=>b[1]-a[1])[0][0];
-
-    for (let i = 0; i < list.length; i++) {
-      list[i].code = `${chosen}-${i + 1}`;
-    }
-  }
-  return arr;
-}
 
 
 
@@ -258,8 +232,12 @@ function renumberSequentialPerCategory(arr) {
     if (c) arr = arr.filter(r => (r.cat||'').toString().trim() === c);
 
     const s = sortSel.value;
-    if (s === 'code-cat-asc') {
-  arr = sortByCategoryThenNumericCode(arr);
+    
+  }
+
+
+  if (s === 'code-asc') {
+  arr = sortByCodePrefixThenNumber(arr);
 } else {
   arr.sort((a,b)=>{
     if (s === 'name-asc')  return (a.name||'').localeCompare(b.name||'');
@@ -269,6 +247,7 @@ function renumberSequentialPerCategory(arr) {
     return 0;
   });
 }
+
 
 
     state.filtered = arr;
