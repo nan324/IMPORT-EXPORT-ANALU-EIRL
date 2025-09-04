@@ -308,7 +308,8 @@ function sortByCodePrefixThenNumber(arr) {
   if (c)    arr = arr.filter(r => (r.cat||'').toString().trim() === c);
   if (codePrefix) arr = arr.filter(r => codePrefixOf(r) === codePrefix);
 
-  const s = sortSel.value;
+  const s = (sortSel && sortSel.value) ? sortSel.value : 'code-asc';
+
 
   if (s === 'code-asc') {
     arr = sortByCodePrefixThenNumber(arr);
@@ -372,18 +373,9 @@ renderCategories(state.rows);
 renderCodePrefixesForCategory(cat.value);
 
 // Orden inicial
-sortSel.value = 'code-asc';
-
-// Pintar productos
+if (sortSel) { sortSel.value = 'code-asc'; }
 applyFilters();
 
-
-      
-      
-      
-      sortSel.value = 'code-asc';
-
-      applyFilters();
     } catch(err){
       grid.innerHTML = `<p>Error al cargar datos: ${err.message}</p>`;
     }
@@ -398,7 +390,8 @@ cat.addEventListener('change', () => {
 
 document.getElementById('code').addEventListener('change', applyFilters);
 
-sortSel.addEventListener('change', applyFilters);
+if (sortSel) sortSel.addEventListener('change', applyFilters);
+
 
 
   start();
