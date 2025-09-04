@@ -224,35 +224,31 @@ function sortByCodePrefixThenNumber(arr) {
   }
 
   function applyFilters(){
-    const term = normalize(q.value);
-    const c = cat.value;
-    let arr = [...state.rows];
+  const term = normalize(q.value);
+  const c = cat.value;
+  let arr = [...state.rows];
 
-    if (term) arr = arr.filter(r => normalize(r.name).includes(term));
-    if (c) arr = arr.filter(r => (r.cat||'').toString().trim() === c);
+  if (term) arr = arr.filter(r => normalize(r.name).includes(term));
+  if (c) arr = arr.filter(r => (r.cat||'').toString().trim() === c);
 
-    const s = sortSel.value;
-    
-  }
-
+  const s = sortSel.value;
 
   if (s === 'code-asc') {
-  arr = sortByCodePrefixThenNumber(arr);
-} else {
-  arr.sort((a,b)=>{
-    if (s === 'name-asc')  return (a.name||'').localeCompare(b.name||'');
-    if (s === 'name-desc') return (b.name||'').localeCompare(a.name||'');
-    if (s === 'price-asc') return (+a.price||0) - (+b.price||0);
-    if (s === 'price-desc')return (+b.price||0) - (+a.price||0);
-    return 0;
-  });
+    arr = sortByCodePrefixThenNumber(arr);
+  } else {
+    arr.sort((a,b)=>{
+      if (s === 'name-asc')  return (a.name||'').localeCompare(b.name||'');
+      if (s === 'name-desc') return (b.name||'').localeCompare(a.name||'');
+      if (s === 'price-asc') return (+a.price||0) - (+b.price||0);
+      if (s === 'price-desc')return (+b.price||0) - (+a.price||0);
+      return 0;
+    });
+  }
+
+  state.filtered = arr;
+  renderGrid();
 }
 
-
-
-    state.filtered = arr;
-    renderGrid();
-  }
 
   // === 2) NUEVO: leer desde tu API en lugar del CSV
   async function fetchFromAPI({ q="", cat="all", sort="name-asc", page=0, pageSize=1000, inStock=0 } = {}) {
@@ -291,6 +287,9 @@ function sortByCodePrefixThenNumber(arr) {
       state.rows = unique;
       dbg.textContent = "Productos cargados: " + state.rows.length;
       renderCategories(state.rows);
+      
+      sortSel.value = 'code-asc';
+
       applyFilters();
     } catch(err){
       grid.innerHTML = `<p>Error al cargar datos: ${err.message}</p>`;
