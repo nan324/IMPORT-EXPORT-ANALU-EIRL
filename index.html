@@ -303,27 +303,32 @@ function sortByCodePrefixThenNumber(arr) {
     }
   }
 
-  function applyFilters(){
+function applyFilters(){
   const term = normalize(q.value);
   const c = cat.value;
   const codeSel = document.getElementById('code');
-const selection = codeSel ? codeSel.value : '';
+  const selection = codeSel ? codeSel.value : '';
 
-if (selection) {
-  if (selection.startsWith('label:')) {
-    const label = selection.slice(6); // nombre de marca
-    // Mostrar TODOS los productos cuyos prefijos mapeen a esa marca
-    arr = arr.filter(r => codeLabel(codePrefixOf(r)) === label);
-  } else {
-    // Compatibilidad si alguna opción fuese un prefijo directo
-    arr = arr.filter(r => codePrefixOf(r) === selection);
+  // 1) punto clave: INICIALIZAR arr
+  let arr = [...state.rows];
+
+  // 2) filtros básicos
+  if (term) arr = arr.filter(r => normalize(r.name).includes(term));
+  if (c)    arr = arr.filter(r => (r.cat || '').toString().trim() === c);
+
+  // 3) filtro por marca/código (2.º combo)
+  if (selection) {
+    if (selection.startsWith('label:')) {
+      const label = selection.slice(6); // nombre de la marca
+      arr = arr.filter(r => codeLabel(codePrefixOf(r)) === label);
+    } else {
+      // compatibilidad si alguna opción fuese un prefijo directo
+      arr = arr.filter(r => codePrefixOf(r) === selection);
+    }
   }
-}
 
-
+  // 4) orden (si quitaste el select, queda fijo en 'code-asc')
   const s = (sortSel && sortSel.value) ? sortSel.value : 'code-asc';
-
-
   if (s === 'code-asc') {
     arr = sortByCodePrefixThenNumber(arr);
   } else {
