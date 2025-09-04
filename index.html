@@ -47,6 +47,14 @@
       <select id="cat">
         <option value="">Todas las categorías</option>
       </select>
+
+
+      <select id="code" disabled>
+  <option value="">Todos los códigos</option>
+</select>
+
+
+      
       <select id="sort">
         
         <option value="code-asc">Ordenar: Código (prefijo y número)</option>
@@ -146,7 +154,49 @@ function parseCodeLastNumber(code) {
   if (!m) return { prefix: txt.toUpperCase(), num: Number.POSITIVE_INFINITY };
   return { prefix: m[1].toUpperCase(), num: parseInt(m[2], 10) };
 }
+  
+// Devuelve el prefijo (todo menos el último número). Ej: "HYS-SH-12" -> "HYS-SH"
+function codePrefixOf(item){
+  return parseCodeLastNumber(item.code).prefix || '';
+}
 
+// Construye las opciones del select #code según la categoría elegida
+function renderCodePrefixesForCategory(categoryValue){
+  const codeSel = document.getElementById('code');
+  codeSel.innerHTML = '<option value="">Todos los códigos</option>';
+
+  // Si no hay categoría, deshabilita
+  if (!categoryValue){
+    codeSel.disabled = true;
+    return;
+  }
+
+  // Prefijos únicos dentro de la categoría seleccionada
+  const prefixes = Array.from(
+    new Set(
+      state.rows
+        .filter(r => (r.cat || '').toString().trim() === categoryValue)
+        .map(codePrefixOf)
+        .filter(Boolean)
+    )
+  ).sort();
+
+  // Si hay prefijos, habilita y llena
+  if (prefixes.length){
+    for (const p of prefixes){
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      codeSel.appendChild(opt);
+    }
+    codeSel.disabled = false;
+  } else {
+    codeSel.disabled = true;
+  }
+}
+
+
+  
 // Ordena por: 1) prefijo (alfabético), 2) número final (asc)
 function sortByCodePrefixThenNumber(arr) {
   return [...arr].sort((a, b) => {
@@ -226,10 +276,14 @@ function sortByCodePrefixThenNumber(arr) {
   function applyFilters(){
   const term = normalize(q.value);
   const c = cat.value;
+  const codeSel = document.getElementById('code');
+  const codePrefix = codeSel ? codeSel.value : '';
+
   let arr = [...state.rows];
 
   if (term) arr = arr.filter(r => normalize(r.name).includes(term));
-  if (c) arr = arr.filter(r => (r.cat||'').toString().trim() === c);
+  if (c)    arr = arr.filter(r => (r.cat||'').toString().trim() === c);
+  if (codePrefix) arr = arr.filter(r => codePrefixOf(r) === codePrefix);
 
   const s = sortSel.value;
 
@@ -248,6 +302,7 @@ function sortByCodePrefixThenNumber(arr) {
   state.filtered = arr;
   renderGrid();
 }
+
 
 
   // === 2) NUEVO: leer desde tu API en lugar del CSV
@@ -287,6 +342,15 @@ function sortByCodePrefixThenNumber(arr) {
       state.rows = unique;
       dbg.textContent = "Productos cargados: " + state.rows.length;
       renderCategories(state.rows);
+
+
+      renderCategories(state.rows);
+renderCodePrefixesForCategory(cat.value); // inicializa #code (queda deshabilitado si no hay categoría)
+sortSel.value = 'code-asc';
+applyFilters();
+
+      
+      
       
       sortSel.value = 'code-asc';
 
@@ -297,8 +361,16 @@ function sortByCodePrefixThenNumber(arr) {
   }
 
   q.addEventListener('input', applyFilters);
-  cat.addEventListener('change', applyFilters);
-  sortSel.addEventListener('change', applyFilters);
+
+cat.addEventListener('change', () => {
+  renderCodePrefixesForCategory(cat.value); // llena el segundo select con prefijos
+  applyFilters();
+});
+
+document.getElementById('code').addEventListener('change', applyFilters);
+
+sortSel.addEventListener('change', applyFilters);
+
 
   start();
 </script>
